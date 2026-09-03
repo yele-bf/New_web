@@ -269,12 +269,12 @@ const Operators = (() => {
     });
 
     // Délégation : le bouton de localisation renvoie à la carte, centrée
-    // sur le barycentre des tests de la ligne.
+    // sur le barycentre des tests de la ligne, ET pose un pin persistant.
     document.querySelector('#operators-table tbody').addEventListener('click', (e) => {
       const btn = e.target.closest('.geo-link');
       if (!btn) return;
       App.switchView('map');
-      MapView.flyTo(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng), 15);
+      MapView.locate(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng));
     });
   }
 

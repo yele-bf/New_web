@@ -4,6 +4,7 @@ const MapView = (() => {
   let map = null;
   let markersLayer = null;
   let heatLayer = null;
+  let locateLayer = null;   // couche du pin « Localisez-moi » (persistante)
   let allPoints = [];
   let countryBounds = null;
 
@@ -71,6 +72,9 @@ const MapView = (() => {
     baseLayers.plan.addTo(map);
     addCountryMask();
     markersLayer = L.layerGroup().addTo(map);
+    // Couche séparée, non effacée par render() : le pin de « Localisez-moi »
+    // survit aux re-rendus (ex. changement de zoom).
+    locateLayer = L.layerGroup().addTo(map);
 
     // Le regroupement dépend du zoom : il faut le recalculer à chaque niveau.
     map.on('zoomend', render);
@@ -458,12 +462,16 @@ const MapView = (() => {
       toggle.title = collapsed ? 'Afficher les filtres' : 'Replier les filtres';
     });
 
-    // Géolocalisation du navigateur
+    // Géolocalisation : déplace la carte ET pose un pin.
+    // 1) GPS natif du navigateur ; 2) en cas d'échec (ex. GPS désactivé ou
+    // fournisseur réseau indisponible), repli sur la position IP via ipinfo.io.
     document.getElementById('locate-btn').addEventListener('click', () => {
-      if (!navigator.geolocation) return App.toast('Géolocalisation non disponible');
+      const fallback = () => locateByIp();
+      if (!navigator.geolocation) return fallback();
       navigator.geolocation.getCurrentPosition(
-        (pos) => flyTo(pos.coords.latitude, pos.coords.longitude, 13),
-        () => App.toast('Position introuvable — vérifiez les autorisations')
+        (pos) => locate(pos.coords.latitude, pos.coords.longitude),
+        fallback,
+        { enableHighAccuracy: true, timeout: 7000, maximumAge: 30000 }
       );
     });
   }
@@ -523,9 +531,59 @@ const MapView = (() => {
     return true;
   }
 
+  // Pin bleu de la fonction « Localisez-moi ». Visuellement distinct des ronds
+  // de test (MARKER_COLOR), dans une couche séparée persistante.
+  function locateIcon() {
+    const size = 34;
+    return L.divIcon({
+      className: 'yele-locate-marker',
+      html: `<div class="yele-locate-pin" style="width:${size}px;height:${size}px"></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size], // pointe du pin = position exacte
+      popupAnchor: [0, -size],
+    });
+  }
+
+  // Place (ou déplace) le pin « Localisez-moi » et décentre la carte dessus.
+  // Un seul pin à la fois : chaque appel remplace le précédent.
+  function locate(lat, lng) {
+    if (!map || !locateLayer) return false;
+    if (!flyTo(lat, lng, 13)) return false; // hors Burkina → toast + pas de pin
+    locateLayer.clearLayers();
+    const marker = L.marker([lat, lng], { icon: locateIcon() });
+    marker.bindPopup(
+      `<div class="locate-popup"><b>Votre position</b><br>`
+      + `${lat.toFixed(5)}, ${lng.toFixed(5)}<br>`
+      + `<small>${new Date().toLocaleString('fr-FR')}</small></div>`,
+      { minWidth: 180 }
+    );
+    locateLayer.addLayer(marker);
+    marker.openPopup();
+    return true;
+  }
+
+  // Repli : géolocalisation par IP (précision ville). Évite le message
+  // « Position introuvable » quand le GPS natif échoue (ex. fournisseur réseau
+  // indisponible sur un PC sans GPS). La position est ensuite validée contre
+  // les bornes du pays comme pour un GPS réel.
+  function locateByIp() {
+    fetch('https://ipinfo.io/json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((data) => {
+        const loc = String(data.loc || '').split(',');
+        const lat = parseFloat(loc[0]);
+        const lng = parseFloat(loc[1]);
+        if (!isFinite(lat) || !isFinite(lng)) throw new Error('position IP invalide');
+        if (!locate(lat, lng)) {
+          App.toast('Position hors du Burkina Faso — impossible de placer le marqueur.');
+        }
+      })
+      .catch(() => App.toast('Position introuvable — vérifiez les autorisations GPS'));
+  }
+
   function invalidate() {
     if (map) setTimeout(() => map.invalidateSize(), 60);
   }
 
-  return { init, flyTo, invalidate, getPoints: () => allPoints };
+  return { init, flyTo, locate, invalidate, getPoints: () => allPoints };
 })();

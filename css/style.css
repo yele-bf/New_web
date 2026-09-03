@@ -261,6 +261,28 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 }
 .yele-zone:hover { transform: scale(1.1); }
 
+/* Pin « Localisez-moi » : distinct des ronds de test, pointe vers la position */
+.yele-locate-marker { background: none; border: none; }
+.yele-locate-pin {
+  position: relative;
+  background: var(--navy);
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 10px rgba(28, 28, 60, .45);
+}
+.yele-locate-pin::after {
+  content: ''; position: absolute;
+  top: 50%; left: 50%;
+  width: 10px; height: 10px;
+  background: var(--green);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.locate-popup { font-size: 12px; }
+.locate-popup b { display: block; font-size: 13px; margin-bottom: 3px; }
+.locate-popup small { color: var(--text-soft); }
+
 /* Sélecteur de période */
 .period-select {
   width: 100%; margin-top: 8px;
