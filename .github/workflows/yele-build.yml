@@ -1,0 +1,25 @@
+name: yele-build
+
+# Contrôle de compilation : voir docs/CONTRIBUTING-equipe.md §1.3 (CI obligatoire).
+# Ne tourne que sur les pull requests, comme le garde-fou.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntaxe JS + ressources de index.html
+        run: node scripts/ci/web_check.js
