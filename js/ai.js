@@ -83,17 +83,17 @@ const AIView = (() => {
 
     tbody.innerHTML = data.anomalies.map((a) => {
       const date = a.timestamp
-        ? new Date(a.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '–';
+        ? new Date(a.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '·';
       const net = a.networkType
-        ? `<span class="net-badge" style="background:${networkColor(a.networkType)}">${escapeHtml(a.networkType)}</span>` : '–';
+        ? `<span class="net-badge" style="background:${networkColor(a.networkType)}">${escapeHtml(a.networkType)}</span>` : '·';
       const color = severityColor(a.severity);
       return `
         <tr>
           <td>${date}</td>
           <td><b style="color:${operatorColor(a.operator)}">${escapeHtml(a.operator || 'Inconnu')}</b></td>
           <td>${net}</td>
-          <td><b>${escapeHtml(a.download ?? '–')}</b></td>
-          <td>${escapeHtml(a.ping ?? '–')} ms</td>
+          <td><b>${escapeHtml(a.download ?? '·')}</b></td>
+          <td>${escapeHtml(a.ping ?? '·')} ms</td>
           <td><span class="q-pill" style="background:${color}22;color:${color}"><i style="background:${color}"></i>${a.severity}/100</span></td>
           <td style="max-width:420px">${(a.reasons || []).map(escapeHtml).join('<br>')}</td>
         </tr>`;
@@ -129,7 +129,7 @@ const AIView = (() => {
       data: {
         labels,
         datasets: [{
-          label: `Débit ↓ prédit (Mbps) — ${operator}`,
+          label: `Débit ↓ prédit (Mbps) pour ${operator}`,
           data: points.map((p) => p.predictedDownload),
           borderColor: '#0e7a4a',
           backgroundColor: 'rgba(14, 122, 74, .12)',

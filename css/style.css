@@ -24,6 +24,30 @@
   --topbar-h: 62px;
 }
 
+/* ─── Thème sombre ─────────────────────────────────────────────────────────
+   Un seul mécanisme : `[data-theme="dark"]` sur <html> surcharge les variables
+   ci-dessus. Tout ce qui utilise var(--…) bascule automatiquement. Les couleurs
+   codées en dur restantes dans le CSS sont traitées au cas par cas ci-dessous ;
+   les couleurs de DONNÉES (niveaux qualité, technos, opérateurs) ne bougent
+   pas : un point « Lent » doit rester rouge dans les deux thèmes. */
+[data-theme="dark"] {
+  --green: #34c48a;        /* vert éclairci : contraste ≥ 4,5:1 sur fond sombre */
+  --green-dark: #7adcae;   /* sert de couleur de TEXTE actif : à éclaircir aussi */
+  --green-light: #123527;  /* fond « teinté vert » : vert à ~12 % sur sombre */
+  --navy: #e8eaf2;         /* titres : presque blanc */
+  --text: #d6dae6;
+  --text-soft: #9aa3b8;
+  --border: #2a3043;
+  --bg: #141824;
+  --white: #1d2233;        /* surfaces « cartes » : gris-bleu, pas noir pur */
+  --shadow: 0 2px 14px rgba(0, 0, 0, .45);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, .55);
+}
+
+/* Alternance de lignes codée en dur → variable dédiée. */
+:root { --row-alt: #fafbfd; }
+[data-theme="dark"] { --row-alt: #212739; }
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -48,9 +72,25 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 }
 
 .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-/* Logo plus grand que l'ancien pictogramme : il est nettement plus détaillé
-   (pylône, carte, graphique) et devient illisible en dessous de ~40 px. */
-.brand-logo { width: 50px; height: 50px; object-fit: contain; display: block; }
+/* Le logo est volontairement PLUS HAUT que la barre (78 px contre 62) : il
+   déborde vers le bas, dans l'espace qui sépare l'en-tête du panneau de
+   filtres, lequel commence à 78 px du haut de la fenêtre.
+   `top` compense le centrage vertical du flex : sans lui, le débordement se
+   ferait pour moitié vers le haut, hors de l'écran.
+   `pointer-events: none` empêche la partie qui dépasse d'intercepter les clics
+   destinés à la carte. */
+.brand-logo {
+  width: 78px; height: 78px;
+  object-fit: contain; display: block;
+  /* Logo à cheval sur la ligne de l'en-tête : moitié dessus, moitié dessous.
+     Le flex le centre d'abord dans la barre, son haut naturel valant
+     (barre − logo) / 2. Pour que son CENTRE tombe sur le bas de la barre, le
+     décalage nécessaire se réduit à la moitié de la hauteur de barre — la
+     taille du logo s'annule dans le calcul, la règle reste donc juste si on
+     change les 78 px ci-dessus. */
+  position: relative; top: calc(var(--topbar-h) / 2);
+  pointer-events: none;
+}
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-title { font-size: 16px; font-weight: 500; color: var(--navy); }
 .brand-title b { font-weight: 800; color: var(--green); }
@@ -71,7 +111,22 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
   height: 3px; border-radius: 3px 3px 0 0; background: var(--green);
 }
 
-.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+/* Bascule thème clair/sombre : bouton rond discret à droite de la recherche.
+   Lune visible en clair (le clic amène le sombre), soleil en sombre. */
+.theme-toggle {
+  width: 36px; height: 36px; flex: none;
+  border: 1.5px solid var(--border); border-radius: 999px;
+  background: var(--white); color: var(--text-soft);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.theme-toggle svg { width: 17px; height: 17px; }
+.theme-toggle:hover { border-color: var(--green); color: var(--green); background: var(--green-light); }
+.theme-toggle .ico-sun { display: none; }
+[data-theme="dark"] .theme-toggle .ico-sun { display: block; }
+[data-theme="dark"] .theme-toggle .ico-moon { display: none; }
 
 .searchbox { position: relative; }
 .searchbox .search-icon {
@@ -106,9 +161,12 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .view { display: none; position: fixed; top: var(--topbar-h); left: 0; right: 0; bottom: 0; }
 .view.active { display: block; }
 
+/* Le logo dépasse de ~38 px sous la barre (il est à cheval sur sa ligne).
+   Sur la carte il se fond dans le panneau blanc, mais sur les vues défilantes
+   il retombait sur le titre de page : on réserve donc cette hauteur en haut. */
 .view-operators.active, .view-stats.active,
 .view-history.active, .view-ai.active {
-  overflow-y: auto; padding: 26px 30px 50px;
+  overflow-y: auto; padding: 46px 30px 50px;
 }
 
 .page-head { margin-bottom: 22px; }
@@ -118,6 +176,25 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 /* ─── Carte principale ───────────────────────────────────────────────────── */
 
 #main-map { position: absolute; inset: 0; z-index: 1; }
+
+/* Thème sombre : les tuiles OpenStreetMap restent claires (ce sont des images
+   serveur) → filtre standard d'inversion + désaturation partielle. Ciblé par
+   la classe `tiles-plan` posée par map.js : le satellite (déjà sombre) ne doit
+   PAS être inversé. Le masque pays reste manipulé en JS (il doit rester
+   exactement var(--bg)). */
+[data-theme="dark"] .tiles-plan {
+  filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.7);
+}
+/* Fond des conteneurs Leaflet (visible pendant le chargement des tuiles). */
+[data-theme="dark"] #main-map { background: var(--bg); }
+/* Popup et tooltip Leaflet : la librairie code son fond en dur. */
+[data-theme="dark"] .leaflet-popup-content-wrapper,
+[data-theme="dark"] .leaflet-popup-tip { background: var(--white); color: var(--text); }
+[data-theme="dark"] .leaflet-container { background: var(--bg); color: var(--text); font-family: inherit; }
+/* Contrôles Leaflet (zoom, attribution) : fond et texte du thème. */
+[data-theme="dark"] .leaflet-bar a { background: var(--white); color: var(--text); border-bottom-color: var(--border); }
+[data-theme="dark"] .leaflet-control-attribution { background: rgba(29, 34, 51, .8); color: var(--text-soft); }
+[data-theme="dark"] .leaflet-control-attribution a { color: var(--green); }
 
 /* Bandeau d'attente / d'erreur affiché pendant le chargement des points. */
 .map-loading {
@@ -134,12 +211,14 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 
 .control-panel {
   position: absolute; top: 16px; left: 16px; z-index: 1000;
-  width: 270px; max-height: calc(100% - 32px); overflow-y: auto;
+  width: 288px; max-height: calc(100% - 32px); overflow-y: auto;
   background: var(--white); border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   padding: 16px;
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; flex-direction: column; gap: 12px;
   transition: width .22s ease, padding .22s ease;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .panel-content { display: flex; flex-direction: column; gap: 16px; }
@@ -170,64 +249,263 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .panel-label {
   font-size: 10.5px; font-weight: 800; letter-spacing: .8px;
   text-transform: uppercase; color: var(--text-soft); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 5px;
+}
+/* Icône (emoji) devant chaque section du panneau : repère visuel rapide. */
+.panel-ico { font-size: 12px; letter-spacing: 0; text-transform: none; }
+
+/* Texte d'aide sous les groupes de filtres (ex. « La couleur montre la
+   qualité de l'indicateur choisi. ») : discret, plus petit que le corps. */
+.metric-hint {
+  font-size: 10.5px; font-weight: 400; color: var(--text-soft);
+  line-height: 1.35; margin-top: 6px;
 }
 
-/* Usage (style ARCEP : gros boutons) */
+/* Usage (style ARCEP : gros boutons).
+   L'icône est posée dans un carré teinté plutôt que nue : elle tient alors le
+   même alignement vertical que les pastilles de couleur des filtres, ce qui
+   donne au panneau une seule colonne de repères visuels. */
 .usage-tabs { display: flex; flex-direction: column; gap: 6px; }
 .usage-tab {
   display: flex; align-items: center; gap: 10px;
-  border: 1.5px solid var(--border); border-radius: 10px;
+  border: 1.5px solid var(--border); border-radius: 8px;
   background: var(--white); cursor: pointer;
-  padding: 9px 11px; font: inherit; text-align: left;
-  transition: all .15s; position: relative;
+  padding: 8px 10px; font: inherit; text-align: left;
+  transition: background .15s, border-color .15s; position: relative;
 }
-.usage-tab svg { width: 19px; height: 19px; color: var(--text-soft); flex-shrink: 0; }
-.usage-tab span { display: flex; flex-direction: column; font-size: 12.5px; font-weight: 700; color: var(--text); }
-.usage-tab span small { font-size: 10.5px; font-weight: 500; color: var(--text-soft); }
+.usage-tab svg {
+  width: 17px; height: 17px; flex: none;
+  color: var(--text-soft);
+  box-sizing: content-box; padding: 5px;
+  background: var(--bg); border-radius: 7px;
+  transition: background .15s, color .15s;
+}
+.usage-tab span {
+  display: flex; flex-direction: column; min-width: 0;
+  font-size: 12.5px; font-weight: 700; color: var(--text); line-height: 1.25;
+}
+.usage-tab span small {
+  font-size: 10.5px; font-weight: 500; color: var(--text-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.usage-tab:hover { border-color: var(--green); background: var(--green-light); }
 .usage-tab.active { border-color: var(--green); background: var(--green-light); }
-.usage-tab.active svg { color: var(--green); }
+.usage-tab.active svg { color: #fff; background: var(--green); }
+.usage-tab.active span { color: var(--green-dark); }
 
-/* Chips */
-.operator-chips, .tech-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Chips — une par ligne, en liste : les noms de fournisseurs sont trop longs
+   pour tenir côte à côte, et une grille de pastilles de largeurs inégales
+   donnait un panneau désordonné. La liste aligne les pastilles de couleur à
+   gauche et les compteurs à droite, ce qui rend les volumes comparables d'un
+   coup d'œil. */
+.operator-chips, .tech-chips { display: flex; flex-direction: column; gap: 4px; }
+/* ── Sélecteur d'opérateur (flux nPerf) ────────────────────────────────────── */
+.operator-select {
+  width: 100%; margin-top: 8px; padding: 8px 10px; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--white); color: var(--text);
+}
+.operator-select:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 2px var(--green-light); }
+
+/* Type de carte (débit/latence/…) */
+.maptype-group { display: flex; flex-wrap: wrap; gap: 5px; }
+.maptype-group .toggle { flex: 1 1 30%; }
+
+/* Overlay « Choisissez un opérateur » (façon nPerf « Select a carrier! ») */
+.map-operator-overlay {
+  position: absolute; inset: 0; z-index: 500;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(2px);
+  pointer-events: none; text-align: center; padding: 20px;
+}
+.map-operator-overlay b { font-size: 20px; color: var(--text, #1c1c3c); }
+.map-operator-overlay small { color: var(--text-soft, #5d6478); max-width: 300px; line-height: 1.45; }
+
+/* ── Légende de qualité (façon nPerf) ─────────────────────────────────────── */
+.map-legend {
+  background: color-mix(in srgb, var(--white) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 11px; box-shadow: 0 2px 10px rgba(15,23,42,.08);
+  font-size: 11px; line-height: 1.35; max-width: 240px;
+}
+.legend-row { display: flex; align-items: center; gap: 7px; padding: 1.5px 0; }
+.legend-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.legend-label { color: var(--text, #1c1c3c); }
+.legend-hint { color: var(--text-soft, #5d6478); margin-left: auto; padding-left: 8px; white-space: nowrap; }
+
+/* Lignes techno dans le popup de couverture */
+.cov-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 12.5px; }
+.cov-label { font-weight: 600; }
+.cov-row b { margin-left: auto; }
+
+/* Badges technologiques : pastille arrondie (style « borne signal » propre
+   à Yélé — pas le cercle nPerf) contenant 4 barres croissantes. Le nombre de
+   barres allumées croît avec la génération réseau. */
+.legend-techs { display: flex; gap: 7px; margin-top: 7px; justify-content: space-between; flex-wrap: wrap; }
+.cov-badge {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 700; color: var(--text-soft, #5d6478);
+}
+.cov-badge-circle {
+  width: 32px; height: 26px;
+  border-radius: 10px 10px 4px 4px;
+  border: 2px solid currentColor;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 2.5px; padding-bottom: 3px;
+  background: color-mix(in srgb, currentColor 8%, var(--white));
+}
+.cov-badge-circle i {
+  width: 4px; border-radius: 2px 2px 0 0; background: currentColor; display: block;
+}
+/* Barres « éteintes » : gris adapté au thème (clair sur sombre, sombre sur clair). */
+.cov-badge-circle i.off { background: var(--q0); }
+
+/* Barre d'un badge : hauteurs croissantes 1→4. */
+.cov-badge-circle i:nth-child(1) { height: 6px; }
+.cov-badge-circle i:nth-child(2) { height: 10px; }
+.cov-badge-circle i:nth-child(3) { height: 14px; }
+.cov-badge-circle i:nth-child(4) { height: 18px; }
+
+/* Symboles antenne de la légende couverture */
+.legend-antenna { display: inline-flex; vertical-align: -3px; margin-right: 6px; color: var(--green, #0e7a4a); }
+.legend-antenna-sm { display: inline-flex; color: var(--text-soft, #5d6478); }
+.legend-sub { font-size: 10px; color: var(--text-soft, #5d6478); margin-bottom: 5px; }
+.legend-title { font-weight: 700; margin-bottom: 5px; color: var(--text, #1c1c3c); display: flex; align-items: center; }
+
+/* Serveur dans le popup */
+.popup-server { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border, #d7dce6); color: var(--text-soft, #5d6478); }
+
+/* Badge « Très Haut Débit » dans le popup (mode Fixe, ≥ 30 Mbit/s). */
+.popup-thd {
+  margin-top: 8px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: var(--green-light);
+  border: 1px solid var(--green);
+  color: var(--green-dark);
+  font-weight: 700;
+  font-size: 12px;
+  text-align: center;
+}
+
 .chip {
+  width: 100%;
   border: 1.5px solid var(--border); background: var(--white);
-  border-radius: 999px; padding: 5px 12px;
-  font: inherit; font-size: 12px; font-weight: 600; color: var(--text);
-  cursor: pointer; transition: all .15s;
-  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 8px; padding: 7px 10px;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text);
+  cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+  display: flex; align-items: center; gap: 8px;
+  text-align: left;
 }
-.chip .chip-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.chip:hover { border-color: var(--green); }
-.chip.active { background: var(--green); border-color: var(--green); color: #fff; }
-.chip.active .chip-dot { outline: 2px solid rgba(255,255,255,.6); }
+.chip .chip-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  display: block; flex: none;
+}
+/* Le libellé occupe la place restante et se tronque plutôt que de passer à la
+   ligne — le nom complet reste disponible en infobulle.
+   Neutre (couleur du texte) : depuis le 06/10 soir, les puces de filtre
+   TECHNO ne portent plus la couleur de leur génération (rond et libellé
+   noirs, voir .chip-dot--neutral) pour ne pas se confondre avec les couleurs
+   de qualité des cartes. */
+.chip .chip-label {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--tech, var(--text));
+}
+/* Puce de filtre TECHNO neutre : rond noir (libellé déjà var(--text)). La
+   couleur techno reste sur la carte de COUVERTURE et ses badges, pas sur les
+   filtres — décision utilisateur du 06/10 soir. */
+.chip .chip-dot--neutral { background: var(--text); }
+/* Compteur : discret, chasse fixe pour que les chiffres s'alignent. */
+.chip b {
+  flex: none; font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-soft); background: var(--bg);
+  padding: 1px 6px; border-radius: 999px;
+}
+.chip:hover { border-color: var(--green); background: var(--green-light); }
+.chip.active {
+  background: var(--green); border-color: var(--green); color: #fff;
+}
+.chip.active .chip-label { color: #fff; }
+.chip.active .chip-dot { outline: 2px solid rgba(255,255,255,.55); }
+.chip.active b { background: rgba(255,255,255,.22); color: #fff; }
 
-/* Toggles */
-.display-toggles { display: flex; flex-direction: column; gap: 8px; }
+/* Toggles — sélecteur segmenté. Rayons accordés aux pastilles (8 px dehors,
+   6 px dedans) pour que les deux familles de contrôles se lisent comme un
+   même système. Les groupes à nombreux boutons (types de carte, période)
+   passent en grille 2 ou 3 colonnes : aucun texte tronqué. */
+.display-toggles { display: flex; flex-direction: column; gap: 6px; }
 .toggle-group {
-  display: flex; background: var(--bg); border-radius: 9px; padding: 3px; gap: 2px;
+  display: flex; background: var(--bg); border-radius: 9px; padding: 3px; gap: 3px;
+  border: 1.5px solid var(--border);
 }
+/* Types de carte : 7 boutons → 2 colonnes, chaque bouton respire et le texte
+   tient (« Couverture », « Streaming », « Navigation »). Idem pour les 6
+   grains de période (3 colonnes) et les 2 boutons d'affichage empilés. */
+.maptype-group { display: grid; grid-template-columns: repeat(2, 1fr); }
+#period-grain { display: grid; grid-template-columns: repeat(3, 1fr); }
+#display-mode { display: grid; grid-template-columns: 1fr; }
+/* Couverture séparée des cartes de qualité (demande) : son propre bloc, un
+   seul bouton sur toute la largeur, masqué en mode Fixe avec son libellé. */
+#coverage-group { grid-template-columns: 1fr; }
+/* Filtres de période ACTIFS, cumulés et retirables un par un : l'année
+   choisie reste visible quand on descend au mois, puis aux semaines. */
+.period-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.period-badges[hidden] { display: none; }
+.period-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; color: var(--green-dark);
+  background: color-mix(in srgb, var(--green) 13%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
+  border-radius: 11px; padding: 2px 4px 2px 8px;
+}
+.period-badge .x {
+  cursor: pointer; font-weight: 800; opacity: .65; padding: 0 3px;
+  border-radius: 50%;
+}
+.period-badge .x:hover { opacity: 1; background: color-mix(in srgb, var(--green) 28%, transparent); }
 .toggle {
-  flex: 1; border: none; background: none; cursor: pointer;
+  flex: 1; min-width: 0;
+  border: none; background: none; cursor: pointer;
   font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-soft);
-  padding: 6px 8px; border-radius: 7px; transition: all .15s;
-  white-space: nowrap;
+  padding: 7px 6px; border-radius: 6px;
+  transition: background .15s, color .15s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.toggle.active { background: var(--white); color: var(--navy); box-shadow: 0 1px 4px rgba(28,28,60,.12); }
+.toggle:hover { color: var(--green-dark); background: rgba(14, 122, 74, .06); }
+/* Hors du panneau de filtres, le groupe se dimensionne sur son contenu : rien
+   ne contraint sa largeur, la troncature n'a pas lieu d'être. */
+.history-filters .toggle-group { flex: none; }
+.history-filters .toggle { overflow: visible; text-overflow: clip; padding: 6px 12px; }
+.toggle.active {
+  background: var(--white); color: var(--green-dark);
+  box-shadow: 0 1px 3px rgba(28, 28, 60, .14);
+  font-weight: 700;
+}
+/* Focus clavier visible (accessibilité) sans briller à la souris. */
+.toggle:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 
 
 /* Le contrôle de zoom de Leaflet est ancré en bas à droite, là où se trouve
    déjà le bouton « ma position » : on le remonte au-dessus de lui. */
-.leaflet-bottom.leaflet-right .leaflet-control-zoom { margin-bottom: 72px; }
+.leaflet-bottom.leaflet-right .leaflet-control-zoom { margin-bottom: 80px; }
 
-/* Bouton localisation */
+/* Bouton localisation. Il portait auparavant une simple icône de cible, sans
+   libellé : personne ne le trouvait, et son intitulé au survol (« Ma
+   position ») ne correspondait pas au nom « Localisez-moi » employé dans le
+   cahier des charges. Le texte est donc affiché, et le vocabulaire aligné. */
 .locate-btn {
-  position: absolute; bottom: 22px; right: 16px; z-index: 1000;
-  width: 42px; height: 42px; border-radius: 50%;
+  position: absolute; bottom: 30px; right: 16px; z-index: 1000;
+  height: 42px; border-radius: 999px; padding: 0 16px 0 12px;
   border: none; background: var(--white); cursor: pointer;
   box-shadow: var(--shadow-lg); color: var(--green);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; gap: 8px;
+  font: inherit; font-size: 13px; font-weight: 700;
+  transition: background .15s;
 }
-.locate-btn svg { width: 20px; height: 20px; }
+.locate-btn svg { width: 19px; height: 19px; flex: none; }
+.locate-btn span { white-space: nowrap; }
 .locate-btn:hover { background: var(--green-light); }
 
 /* ─── Popups Leaflet ─────────────────────────────────────────────────────── */
@@ -239,8 +517,35 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .popup-op { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
 .popup-op b { font-size: 14px; }
 .popup-net {
-  font-size: 9.5px; font-weight: 800; color: #fff;
+  font-size: 9.5px; font-weight: 800;
   padding: 2px 7px; border-radius: 5px;
+  /* Badge neutre clair à texte NOIR (décision du 07/10) : en thème sombre, le
+     fond ardoise d'origine se fondait dans le popup sombre et le texte blanc
+     « se cachait ». Clair sur les deux thèmes, le nombre reste lisible. */
+  background: #e9edf3; color: #101828;
+}
+/* Seul badge coloré : « Réseau mobile » (bleu 5G, texte blanc — contraste ok
+   sur les fonds clair et sombre). */
+.popup-net--mobile { background: #2f6bff; color: #fff; }
+
+/* Étiquettes françaises dessinées par le dashboard sur le fond SATELLITE
+   (les repères Esri en anglais « North / Western / Center » ont été retirés,
+   décision du 07/10). Blanc fixe + halo : lisible sur l'imagerie, quel que
+   soit le thème — le satellite n'est jamais inversé en sombre. Non
+   interactif (pointer-events none sur le pane 'frLabels'). */
+.fr-label {
+  white-space: nowrap; transform: translate(-50%, -50%);
+  font-weight: 700; font-size: 11.5px; color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, .85), 0 0 7px rgba(0, 0, 0, .65);
+}
+.fr-label--region {
+  font-size: 9px; font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; opacity: .82;
+}
+/* Villes secondaires : plus discrètes que les chefs-lieux de région, mais
+   lisibles — elles portent les zones de test rurales (Rollo, Sabou, Léo…). */
+.fr-label--town {
+  font-size: 10px; font-weight: 600; opacity: .9;
 }
 .popup-metrics { display: flex; gap: 8px; margin-bottom: 9px; }
 .popup-metric {
@@ -250,49 +555,65 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .popup-metric span { font-size: 9.5px; color: var(--text-soft); }
 .popup-quality { font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 
+/* Repère ponctuel : « Ma position » (ISS-11) et mesure désignée depuis
+   l'historique (IMP-07). Volontairement différent des ronds de mesure — bleu
+   et cerclé de blanc — pour qu'on le distingue au premier coup d'œil. */
+.yele-pin-marker { background: none; border: none; }
+.yele-pin {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #1d4ed8; border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .45);
+  animation: pin-pop .25s ease-out;
+}
+@keyframes pin-pop {
+  from { transform: scale(.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 /* Ronds de zone (tests regroupés ≈ 10 m) */
 .yele-zone-marker { background: none; border: none; }
 .yele-zone {
   display: flex; align-items: center; justify-content: center;
-  border-radius: 50%; border: 2.5px solid #fff;
+  border-radius: 50%;
+  /* Contour blanc retiré (demande) : le rond ne montre que SA couleur. */
   box-shadow: 0 1px 7px rgba(0,0,0,.4);
   color: #fff; font-weight: 800; font-size: 11px;
   transition: transform .12s;
 }
 .yele-zone:hover { transform: scale(1.1); }
 
-/* Pin « Localisez-moi » : distinct des ronds de test, pointe vers la position */
-.yele-locate-marker { background: none; border: none; }
-.yele-locate-pin {
-  position: relative;
-  background: var(--navy);
-  border: 3px solid #fff;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-  box-shadow: 0 2px 10px rgba(28, 28, 60, .45);
-}
-.yele-locate-pin::after {
-  content: ''; position: absolute;
-  top: 50%; left: 50%;
-  width: 10px; height: 10px;
-  background: var(--green);
-  border-radius: 50%;
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-.locate-popup { font-size: 12px; }
-.locate-popup b { display: block; font-size: 13px; margin-bottom: 3px; }
-.locate-popup small { color: var(--text-soft); }
-
-/* Sélecteur de période */
+/* Sélecteur de période / opérateur / lieu : flèche personnalisée, focus
+   visible et padding généreux — le contrôle le plus touché du panneau. */
 .period-select {
   width: 100%; margin-top: 8px;
   border: 1.5px solid var(--border); border-radius: 8px;
   background: var(--white); color: var(--text);
   font: inherit; font-size: 12px; font-weight: 600;
-  padding: 7px 9px; cursor: pointer;
+  padding: 8px 28px 8px 10px; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235d6478' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
 }
-.period-grain { flex-wrap: wrap; }
-.period-grain .toggle { flex: 1 1 40%; }
+.period-select:hover { border-color: var(--green); }
+.period-select:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+/* Quatre granularités : « Semaine » ne tient pas sur une ligne de quatre dans
+   la largeur du panneau. Une grille 2 × 2 explicite, plutôt qu'un flex-wrap
+   qui laissait les boutons de largeurs inégales se replier au hasard. */
+.period-grain {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+}
+
+/* L'option par défaut du select n'aurait pas le même fond que la liste
+   déroulante ouverte en sombre (le navigateur peint les <option> avec la
+   couleur système) : on force la palette de la page. */
+select.period-select option { background: var(--white); color: var(--text); }
+
+/* Le chevron des selects est un SVG en data-URI : il ne suit pas var(--…).
+   Deux versions donc, commutées par le thème. */
+[data-theme="dark"] .period-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa3b8' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
 
 /* Ventilation temporelle dans le popup de zone */
 .zbd-title {
@@ -303,7 +624,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .zbd-row { display: flex; align-items: center; gap: 7px; font-size: 11px; }
 .zbd-label { width: 58px; flex-shrink: 0; color: var(--text-soft); }
 .zbd-track { flex: 1; height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; }
-.zbd-track i { display: block; height: 100%; border-radius: 4px; background: var(--navy); }
+.zbd-track i { display: block; height: 100%; border-radius: 4px; background: var(--green); }
 .zbd-val { width: 62px; text-align: right; font-weight: 700; }
 .zbd-val small { color: var(--text-soft); font-weight: 500; }
 .zbd-empty { font-size: 11px; color: var(--text-soft); }
@@ -311,7 +632,10 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 /* ─── Vue Statistiques ───────────────────────────────────────────────────── */
 
 .kpi-grid {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px;
+  display: grid; gap: 14px; margin-bottom: 22px;
+  /* Adaptatif plutôt que 5 colonnes fixes : la vue Opérateurs n'a que trois
+     cartes et laissait deux colonnes vides à droite. */
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 .kpi-card {
   background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -338,14 +662,29 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 
 .table-wrap { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.data-table th {
-  text-align: left; padding: 9px 12px;
+/* En-tête collant : sur un tableau de cent lignes, les intitulés de colonnes
+   disparaissaient dès les premiers défilements. */
+.data-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--white);
+  text-align: left; padding: 10px 12px;
   font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
   color: var(--text-soft); border-bottom: 2px solid var(--border);
   white-space: nowrap;
 }
-.data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.data-table td {
+  padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+/* Alternance discrète : elle guide l'œil horizontalement sur des lignes de
+   huit colonnes, là où de simples filets se confondent. */
+.data-table tbody tr:nth-child(even) { background: var(--row-alt); }
 .data-table tbody tr:hover { background: var(--green-light); }
+
+/* Colonnes de chiffres : alignées à droite et en chasse fixe, pour que les
+   ordres de grandeur se comparent verticalement. */
+.data-table td.num, .data-table th.num {
+  text-align: right; font-variant-numeric: tabular-nums;
+}
 
 .net-badge {
   font-size: 10px; font-weight: 800; color: #fff;
@@ -368,31 +707,64 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 }
 .data-table.sortable th.sorted[data-dir="asc"]::after { transform: rotate(180deg); }
 
-.op-period { color: var(--text-soft); }
+/* L'en-tête collant n'a d'effet que si son conteneur défile lui-même. Comme
+   `overflow-x: auto` force aussi `overflow-y` à `auto`, .table-wrap EST le
+   conteneur de défilement — mais sans hauteur bornée il ne défile jamais, et
+   les intitulés de colonnes disparaissaient avec la page. On borne donc la
+   zone de tableau, qui devient un vrai cadre défilant.
+   Valeur en vh plutôt que calculée : la hauteur cumulée du titre, des cartes
+   de KPI et des filtres varie, et une soustraction exacte serait fragile. */
+#view-operators .table-wrap { max-height: 56vh; }
 
-/* Débit moyen : barre proportionnelle + valeur. */
-.op-dl { display: flex; align-items: center; gap: 9px; }
+.op-period { color: var(--text-soft); font-variant-numeric: tabular-nums; }
+
+/* Opérateur : pastille de couleur alignée en colonne, comme dans le panneau de
+   la carte. Le nom canonique est court, il n'a plus besoin d'être tronqué. */
+.op-name { font-weight: 700; color: var(--navy); }
+.op-name .op-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  display: inline-block; margin-right: 8px; vertical-align: 1px;
+}
+
+/* Débit moyen : barre proportionnelle + valeur. La valeur passe AVANT la barre
+   et en chasse fixe : c'est le chiffre qu'on lit, la barre ne fait que situer. */
+.op-dl { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.op-dl b { font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
 .op-bar {
-  width: 74px; height: 7px; flex: none;
+  width: 68px; height: 6px; flex: none;
   background: var(--bg); border-radius: 999px; overflow: hidden;
 }
 .op-bar-fill { display: block; height: 100%; border-radius: 999px; }
 
-/* Lieu cliquable renvoyant vers la carte. */
-.op-geo { max-width: 260px; white-space: normal; }
+/* Lieu cliquable renvoyant vers la carte. Les coordonnées sont passées en
+   infobulle : en seconde ligne, elles doublaient la hauteur de chaque rangée
+   pour une information que personne ne lit. */
+.op-geo { max-width: 280px; }
+.geo-link, .geo-none {
+  display: block; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .geo-link {
   border: none; background: none; padding: 0; font: inherit; text-align: left;
   color: var(--text); font-weight: 600; cursor: pointer;
 }
 .geo-link:hover { color: var(--green); text-decoration: underline; }
-.geo-link small, .geo-none small { display: block; font-weight: 400; }
-.geo-link small { font-size: 11px; color: var(--text-soft); }
 .geo-none { color: var(--text-soft); }
 
-#op-kpi-best { font-size: 18px; line-height: 1.25; }
+#op-kpi-best { font-size: 17px; line-height: 1.3; }
 #op-kpi-best small { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-soft); }
 
 /* ─── Historique ─────────────────────────────────────────────────────────── */
+
+/* Pousse les boutons d'export à droite, pour les séparer visuellement des
+   filtres : ce sont des actions, pas des critères. */
+.filters-spacer { flex: 1; min-width: 0; }
+
+/* Colonne Signal : chiffres alignés, valeurs négatives en chasse fixe. */
+.hist-signal { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Lieu cliquable dans l'historique, comme dans la vue Opérateurs. */
+.hist-geo { max-width: 200px; }
 
 .history-filters {
   display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px;
@@ -410,6 +782,18 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
   font: inherit; font-size: 12.5px; font-weight: 700;
   padding: 9px 18px; border-radius: 8px; cursor: pointer;
 }
+
+/* Bouton « Réinitialiser les filtres » : pleine largeur du panneau, style
+   discret (contour, pas plein) — c'est une action de secours, pas l'action
+   principale. */
+.reset-btn {
+  width: 100%;
+  background: transparent;
+  color: var(--text-soft);
+  border: 1.5px solid var(--border);
+  padding: 8px 12px;
+}
+.reset-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-light); }
 .btn-primary:hover { background: var(--green-dark); }
 .btn-ghost {
   border: 1.5px solid var(--border); background: var(--white); color: var(--text);
@@ -465,5 +849,5 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
   .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
   .view { top: 110px; }
   .topnav { order: 3; width: 100%; overflow-x: auto; }
-  .control-panel { width: 230px; }
+  .control-panel { width: 260px; }
 }

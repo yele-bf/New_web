@@ -36,7 +36,16 @@ const Operators = (() => {
 
     points = MapView.getPoints();
     if (!points.length) {
-      try { points = await API.mapPoints() || []; } catch (e) {
+      // Repli : la carte n'a pas encore chargé (lien profond ?view=operators).
+      // Il faut normaliser ici aussi, sans quoi les noms abîmés réapparaissent
+      // — ONATEL scindé en deux, technologies parasites.
+      try {
+        points = (await API.mapPoints() || []).map((p) => ({
+          ...p,
+          operator: normalizeOperator(p.operator),
+          networkType: normalizeNetwork(p.networkType),
+        }));
+      } catch (e) {
         tbody.innerHTML = `<tr><td colspan="8" style="color:#e0492f">Erreur : ${escapeHtml(e.message)}</td></tr>`;
         return;
       }
@@ -55,7 +64,7 @@ const Operators = (() => {
     opSel.length = 1;
     operators.forEach((o) => opSel.add(new Option(o, o)));
 
-    const techs = [...new Set(points.map((p) => (p.networkType || '').toUpperCase()).filter(Boolean))].sort();
+    const techs = [...new Set(points.map((p) => p.networkType).filter(Boolean))].sort();
     const techSel = document.getElementById('op-filter-tech');
     techSel.length = 1;
     techs.forEach((t) => techSel.add(new Option(t, t)));
@@ -64,7 +73,7 @@ const Operators = (() => {
   function filtered() {
     return points.filter((p) =>
       (!state.operator || (p.operator || 'Inconnu') === state.operator) &&
-      (!state.tech || (p.networkType || '').toUpperCase() === state.tech));
+      (!state.tech || p.networkType === state.tech));
   }
 
   // ── Agrégation ──────────────────────────────────────────────────────────────
@@ -104,7 +113,7 @@ const Operators = (() => {
       // Technologie la plus représentée dans le groupe.
       const techCounts = {};
       g.pts.forEach((p) => {
-        const t = (p.networkType || '').toUpperCase();
+        const t = p.networkType || '';
         if (t) techCounts[t] = (techCounts[t] || 0) + 1;
       });
       const tech = Object.keys(techCounts).sort((a, b) => techCounts[b] - techCounts[a])[0] || '';
@@ -166,7 +175,7 @@ const Operators = (() => {
       .sort((a, b) => b.avg - a.avg)[0];
 
     const el = document.getElementById('op-kpi-best');
-    if (!best) { el.textContent = '–'; return; }
+    if (!best) { el.textContent = '·'; return; }
     el.innerHTML = `<span style="color:${operatorColor(best.operator)}">${escapeHtml(best.operator)}</span>`
       + `<small> ${best.avg.toFixed(1)} Mbps</small>`;
   }
@@ -188,26 +197,30 @@ const Operators = (() => {
     tbody.innerHTML = visible.map((r) => {
       const lvl = qualityLevel({ download: r.avgDl }, 'debit');
       const net = r.tech
-        ? `<span class="net-badge" style="background:${networkColor(r.tech)}">${escapeHtml(r.tech)}</span>` : '–';
+        ? `<span class="net-badge" style="background:${networkColor(r.tech)}">${escapeHtml(r.tech)}</span>` : '·';
+      const place = cleanPlace(r.location) || r.location;
       const geo = r.lat != null
-        ? `<button class="geo-link" data-lat="${r.lat}" data-lng="${r.lng}" title="Voir sur la carte">
-             ${escapeHtml(r.location)}<small>${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}</small>
-           </button>`
-        : `<span class="geo-none">${escapeHtml(r.location)}</span>`;
+        ? `<button class="geo-link" data-lat="${r.lat}" data-lng="${r.lng}"
+             title="${escapeHtml(place)}, ${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}
+Cliquer pour voir sur la carte">${escapeHtml(place)}</button>`
+        : `<span class="geo-none" title="${escapeHtml(place)}">${escapeHtml(place)}</span>`;
 
       return `
         <tr>
           <td class="op-period">${escapeHtml(r.periodLabel)}</td>
-          <td><b style="color:${operatorColor(r.operator)}">${escapeHtml(r.operator)}</b></td>
-          <td>${r.count}</td>
+          <td class="op-name">
+            <span class="op-dot" style="background:${operatorColor(r.operator)}"></span>
+            <span>${escapeHtml(r.operator)}</span>
+          </td>
+          <td class="num">${r.count}</td>
           <td class="op-dl">
+            <b>${r.avgDl.toFixed(1)}</b>
             <div class="op-bar">
               <span class="op-bar-fill" style="width:${(r.avgDl / maxDl) * 100}%;background:${qualityColor(lvl)}"></span>
             </div>
-            <b>${r.avgDl.toFixed(1)}</b>
           </td>
-          <td>${r.avgUl.toFixed(1)}</td>
-          <td>${Math.round(r.avgPing)} ms</td>
+          <td class="num">${r.avgUl.toFixed(1)}</td>
+          <td class="num">${Math.round(r.avgPing)} ms</td>
           <td>${net}</td>
           <td class="op-geo">${geo}</td>
         </tr>`;
@@ -269,14 +282,25 @@ const Operators = (() => {
     });
 
     // Délégation : le bouton de localisation renvoie à la carte, centrée
-    // sur le barycentre des tests de la ligne, ET pose un pin persistant.
+    // sur le barycentre des tests de la ligne.
     document.querySelector('#operators-table tbody').addEventListener('click', (e) => {
       const btn = e.target.closest('.geo-link');
       if (!btn) return;
       App.switchView('map');
-      MapView.locate(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng));
+      // Repère explicite : centrer la carte ne suffit pas à désigner le lieu
+      // parmi les ronds de mesure voisins.
+      MapView.showMeasurement(
+        parseFloat(btn.dataset.lat),
+        parseFloat(btn.dataset.lng),
+        btn.querySelector('span')?.textContent.trim() || btn.textContent.trim(),
+      );
     });
   }
 
-  return { show };
+  /// Oblige la vue à tout relire au prochain affichage.
+  function reset() {
+    built = false;
+  }
+
+  return { show, reset };
 })();

@@ -2,7 +2,13 @@
 
 const API = (() => {
   const BASE = CONFIG.API_BASE_URL;
-  const cache = {};
+
+  // Cache À DURÉE LIMITÉE. Il ne portait auparavant aucune expiration : une
+  // fois la carte chargée, le tableau de bord ne réinterrogeait plus jamais le
+  // serveur, et un onglet laissé ouvert affichait indéfiniment l'état du
+  // premier chargement. C'est la cause principale du délai d'apparition des
+  // mesures constaté par les agents.
+  const cache = {};        // path -> { data, at }
 
   // 120 s : sur l'offre gratuite Render, le service s'endort après 15 min et met
   // ~60-90 s à se réveiller. Pendant ce réveil, Render renvoie sa propre page
@@ -12,10 +18,14 @@ const API = (() => {
   const TIMEOUT_MS = 120_000;
   const RETRIES = 2;
 
+  // Durée de validité d'une réponse en cache.
+  const CACHE_TTL_MS = (CONFIG.REFRESH_SECONDS || 60) * 1000;
+
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   async function get(path, { useCache = true } = {}) {
-    if (useCache && cache[path]) return cache[path];
+    const hit = cache[path];
+    if (useCache && hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
     let lastError;
     for (let attempt = 0; attempt <= RETRIES; attempt++) {
@@ -29,7 +39,7 @@ const API = (() => {
         }
         if (!res.ok) throw new Error(`HTTP ${res.status} sur ${path}`);
         const data = await res.json();
-        if (useCache) cache[path] = data;
+        if (useCache) cache[path] = { data, at: Date.now() };
         return data;
       } catch (e) {
         // Erreur réseau ou timeout (réveil du service) : on retente.
@@ -40,12 +50,18 @@ const API = (() => {
     }
     throw new Error(
       'Le serveur ne répond pas. S\'il était en veille, il peut mettre '
-      + 'jusqu\'à une minute à redémarrer — réessayez dans un instant. '
+      + 'jusqu\'à une minute à redémarrer : réessayez dans un instant. '
       + `(${lastError?.message || 'échec réseau'})`
     );
   }
 
   return {
+    /// Vide le cache : le prochain appel repart du serveur. Utilisé par le
+    /// bouton d'actualisation et par le rafraîchissement automatique.
+    invalidate() {
+      Object.keys(cache).forEach((k) => delete cache[k]);
+    },
+
     // KPIs globaux : { totalTests, avgDownload, avgUpload, avgPing, testsToday }
     summary: () => get('/api/dashboard/summary'),
 

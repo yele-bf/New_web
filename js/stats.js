@@ -8,11 +8,28 @@ const Stats = (() => {
 
   const fontStack = "'Inter', system-ui, sans-serif";
 
+  // Couleurs des graphiques dépendant du thème : le texte des axes suit la
+  // variable CSS, les séries (données) gardent leurs couleurs propres.
+  // Appelé avant chaque construction de graphe et à chaque bascule de thème.
+  function themeChartDefaults() {
+    Chart.defaults.font.family = fontStack;
+    Chart.defaults.color = getCss('--text-soft') || '#5d6478';
+  }
+
+  // Rebuild des graphiques déjà construits quand le thème change (l'objet
+  // Chart ne relit pas Chart.defaults après construction).
+  document.addEventListener('yele-theme', () => {
+    if (!built) return;
+    themeChartDefaults();
+    if (timelineChart) timelineChart.update();
+    if (operatorsChart) operatorsChart.update();
+    if (networkChart) networkChart.update();
+  });
+
   async function show() {
     if (built) return;
     built = true;
-    Chart.defaults.font.family = fontStack;
-    Chart.defaults.color = '#5d6478';
+    themeChartDefaults();
 
     loadSummary();
     loadTimeline(30);
@@ -100,7 +117,7 @@ const Stats = (() => {
     }
     const counts = {};
     points.forEach((p) => {
-      const n = (p.networkType || 'Inconnu').toUpperCase();
+      const n = p.networkType || 'Non précisé';
       counts[n] = (counts[n] || 0) + 1;
     });
     const labels = Object.keys(counts);
@@ -157,5 +174,11 @@ const Stats = (() => {
     });
   }
 
-  return { show };
+  /// Oblige la vue à tout recalculer au prochain affichage. Les graphiques
+  /// existants sont détruits par `show()` avant d'être reconstruits.
+  function reset() {
+    built = false;
+  }
+
+  return { show, reset };
 })();
