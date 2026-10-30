@@ -93,7 +93,7 @@ dashboard :
 - Les modèles de propagation de l'UIT-R (affaiblissement par le relief, portée
   par fréquence) ne sont pas calculés : leur effet n'entre que par les mesures
   voisines. Aucune prévision n'est donc possible là où il n'y a pas de test
-  (au-delà de 1,2 km). **Suivi : [#15](https://github.com/yele-bf/New_web/issues/15).**
+  (au-delà de 1,2 km). Réserve actée en review de la PR #13 (approche A seule, sans item de suivi).
 - Le modèle n'a pas été comparé à des mesures faites après coup : sa justesse
   reste à évaluer, idéalement avec une campagne terrain.
 - La part de sites collectés par faisceau hertzien (50 %) et le rapport entre
