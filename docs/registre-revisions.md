@@ -7,6 +7,7 @@
 | Date | Sous-ID (V14) | Type | Agent | Owner (classeur) | Branche / PR | Commit | Validation | Statut |
 |---|---|---|---|---|---|---|---|---|
 | 2026-10-28 | IMP-10 | feat | ZOUNGRANA Wendkuni Brice Yannick | SAWADOGO Wend-kuni Cédric / KOUNANGA Benoit / ZOUNGRANA Wendkuni Brice Yannick / OUEDRAOGO AZIZ | `imp/IMP-10-cartes-debit-5g` | _après merge_ | Dashboard local | En cours |
+| 2026-10-30 | IMP-15 | feat | SANOU Zossoun Aristide Daouda | SANOU Zossoun Aristide Daouda | `imp/IMP-15-prevision-reseau` | _après merge_ | Dashboard local (Chrome) le 30/10/2026 : 90 points de prévision sur Ouagadougou, curseur 48 h, filtres, infobulle avec facteurs et seuil ARCEP ; `docs/preuves/IMP-15/` | Transmis |
 ## Nomenclature V14 vs V11 vs V4 (à lire avant de citer un Sous-ID)
 
 - **V14 (19/10/2026) = V11 + IMP-14** (conditions d'utilisation au premier lancement, P3, `mobilefront`) **+ IMP-15** (prévision de la qualité réseau, P1, `New_web`) : 27 items.
