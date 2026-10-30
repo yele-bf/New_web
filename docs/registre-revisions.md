@@ -8,6 +8,8 @@
 |---|---|---|---|---|---|---|---|---|
 | 2026-10-28 | IMP-10 | feat | ZOUNGRANA Wendkuni Brice Yannick | SAWADOGO Wend-kuni Cédric / KOUNANGA Benoit / ZOUNGRANA Wendkuni Brice Yannick / OUEDRAOGO AZIZ | `imp/IMP-10-cartes-debit-5g` | _après merge_ | Dashboard local | En cours |
 | 2026-10-30 | IMP-15 | feat | SANOU Zossoun Aristide Daouda | SANOU Zossoun Aristide Daouda | `imp/IMP-15-prevision-reseau` (PR #13) | `e65a913` | Dashboard local (Chrome) le 30/10/2026 : 90 points de prévision sur Ouagadougou, curseur 48 h, filtres, infobulle avec facteurs et seuil ARCEP ; `docs/preuves/IMP-15/`. Captures prises avec une autre instance du backend (`config.js` suspendu) : reproductibilité à refaire quand `mobiletest-j0c6` sera rétabli. Critère « bilans de liaison UIT-R » non couvert : critère reformulé acté en review de la PR #13 ; pas d'item de suivi ouvert (approche A seule). | Validé |
+| 2026-10-30 | ISS-06 | fix | Wangraoua Aicha Bénédicte Flore Myriam | Wangraoua Aicha Bénédicte Flore Myriam | `iss/ISS-06-min-moy-max-debit-latence-dashboard` | `5dba6c2` | Dashboard local : colonnes crête download/upload et ping min dans l'historique | En cours |
+
 ## Nomenclature V14 vs V11 vs V4 (à lire avant de citer un Sous-ID)
 
 - **V14 (19/10/2026) = V11 + IMP-14** (conditions d'utilisation au premier lancement, P3, `mobilefront`) **+ IMP-15** (prévision de la qualité réseau, P1, `New_web`) : 27 items.
